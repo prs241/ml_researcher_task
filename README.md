@@ -1,2 +1,4 @@
-# ml_researcher_task
-Blockhouse ML researcher task
+# Run the program
+```
+python3 solution.py
+```
