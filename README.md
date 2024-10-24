@@ -1,4 +1,4 @@
 # Run the program
 ```
-python3 solution.py
+python3 solution.py > solution_output.txt
 ```

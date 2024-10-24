@@ -50,7 +50,7 @@ class Benchmark:
             }
             trades.append(trade)
         return pd.DataFrame(trades)
-    
+
     def calculate_vwap(self, idx, shares):
         bid_prices = self.data.iloc[idx][['bid_price_1', 'bid_price_2', 'bid_price_3', 'bid_price_4', 'bid_price_5']]
         bid_sizes = self.data.iloc[idx][['bid_size_1', 'bid_size_2', 'bid_size_3', 'bid_size_4', 'bid_size_5']]
@@ -66,7 +66,7 @@ class Benchmark:
         Slippage = (self.data.iloc[idx]['bid_price_1'] - actual_price) * shares
         Market_Impact = alpha * np.sqrt(shares)
         return np.array([Slippage, Market_Impact])
-    
+
     def simulate_strategy(self, trades, data, preferred_timeframe):
         slippage = []
         market_impact = []
@@ -108,23 +108,29 @@ class TradingEnv(gym.Env):
         return np.array([current_price, self.remaining_shares], dtype=np.float32)
 
     def step(self, action):
+        # Debugging actions and remaining shares
+        print(f"Action at step {self.current_step}: {action[0]}")
+        
         current_price = self.data.iloc[self.current_step]['bid_price_1']  # Use bid price 1 as the current price proxy
         current_volume = self.data.iloc[self.current_step][['bid_size_1', 'bid_size_2', 'bid_size_3', 'bid_size_4', 'bid_size_5']].sum()
 
-        shares_to_sell = action[0] * self.remaining_shares
-        shares_to_sell = min(shares_to_sell, current_volume)
+        shares_to_sell = max(0.01, action[0]) * self.remaining_shares  # Ensure some shares are sold
+        shares_to_sell = min(shares_to_sell, current_volume)  # Sell only what volume allows
         
+        # Debug remaining shares and volume
+        print(f"Remaining shares: {self.remaining_shares}, Shares to sell: {shares_to_sell}, Volume available: {current_volume}")
+
         if self.benchmark:
             slippage, market_impact = self.benchmark.compute_components(alpha=0.001, shares=int(shares_to_sell), idx=self.current_step)
             transaction_cost = slippage + market_impact
         else:
-            transaction_cost = shares_to_sell * current_price * 0.001
+            transaction_cost = shares_to_sell * current_price * 0.001  # Basic transaction cost
 
         self.remaining_shares -= shares_to_sell
         self.current_step += 1
         
         done = self.current_step >= self.trading_horizon or self.remaining_shares <= 0
-        reward = -transaction_cost
+        reward = -transaction_cost  # Negative of transaction cost as reward
         
         return self._get_observation(), reward, done, {}
 
@@ -156,7 +162,7 @@ for i in range(env.get_attr('trading_horizon')[0]):
     obs, rewards, done, info = env.step(action)
     
     timestamps.append(data.iloc[i]['timestamp'])
-    shares_sold = action[0] * env.get_attr('remaining_shares')[0]
+    shares_sold = max(0.01, action[0]) * env.get_attr('remaining_shares')[0]  # Ensure non-zero shares sold
     share_sizes.append(shares_sold)
     
     slippage, market_impact = benchmark.compute_components(alpha=0.001, shares=int(shares_sold), idx=i)
