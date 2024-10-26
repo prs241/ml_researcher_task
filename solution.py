@@ -4,6 +4,7 @@ import pandas as pd
 from stable_baselines3 import SAC, PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 from gym import spaces
+
 class Benchmark:
     def __init__(self, data):
         """
